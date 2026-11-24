@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+outputs/
+# mocap datasets and checkpoints are large/licensed; keep them out of git
+data/
+dataset/
+checkpoints/
+logs/
+# dataset archives / mocap clips / body models anywhere in the repo (licensed, not redistributable)
+*.tar.bz2
+*.tar.gz
+*.zip
+*.npz
+*.pkl

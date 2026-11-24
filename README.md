@@ -28,7 +28,15 @@ outputs/   generated images/videos (git-ignored)
 
 ```bash
 .venv/bin/python scripts/spawn_humanoid.py          # print body tree, render outputs/spawn.png
-.venv/bin/mjpython scripts/spawn_humanoid.py --view # interactive viewer (macOS needs mjpython)
+.venv/bin/python scripts/spawn_humanoid.py --view   # interactive viewer
+```
+
+### Mocap data
+
+Download **CMU (SMPL+H G)** from https://amass.is.tue.mpg.de into `dataset/` (registration required), then keep only the clips listed in the script:
+
+```bash
+.venv/bin/python scripts/extract_amass_clips.py dataset/CMU.tar.bz2   # -> dataset/CMU/...
 ```
 
 ## Progress
