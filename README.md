@@ -24,7 +24,7 @@ uv pip install -p .venv -r requirements.txt
 
 ```
 assets/    robot models (assets/humanoid.xml: DeepMind MuJoCo humanoid, Apache-2.0)
-scripts/   amass.py (SMPL FK), play_amass.py, retarget.py, tracking_env.py, train_tracking.py, spawn_humanoid.py, extract_amass_clips.py
+scripts/   amass.py (SMPL FK), play_amass.py, retarget.py, tracking_env.py, train_tracking.py, plot_training.py, metrics.py, eval_policy.py, spawn_humanoid.py, extract_amass_clips.py
 outputs/   generated images/videos (git-ignored)
 ```
 
@@ -55,6 +55,7 @@ Kinematic retargeting (IK, no learning) onto the humanoid, saved to `outputs/ret
 ```bash
 .venv/bin/python   scripts/retarget.py dataset/CMU/05/05_02_poses.npz          # solve + snapshot
 .venv/bin/mjpython scripts/retarget.py dataset/CMU/05/05_02_poses.npz --view   # solve + live playback
+.venv/bin/python   scripts/retarget.py dataset/CMU/05/05_02_poses.npz --gif    # solve + IK-only GIF (*_ik.gif)
 ```
 
 RL motion tracking (ReActor lower level: PD setpoints + residual root wrench, Tab. 1 rewards, PPO), reference = the IK retarget above. Runs go to `outputs/tracking/<clip>_<t0>-<t1>/`:
@@ -63,6 +64,11 @@ RL motion tracking (ReActor lower level: PD setpoints + residual root wrench, Ta
 .venv/bin/python   scripts/train_tracking.py --clip 05_02_poses --t1 4 --steps 20e6   # train (Ctrl-C safe, checkpoints every ~1M steps)
 .venv/bin/python   scripts/train_tracking.py --clip 05_02_poses --t1 4 --resume       # continue
 .venv/bin/mjpython scripts/train_tracking.py --clip 05_02_poses --t1 4 --play         # watch latest checkpoint
+.venv/bin/mjpython scripts/train_tracking.py --clip 05_02_poses --t1 4 --play --best  # watch best evaluated model (add --tag NAME for a tagged run)
+.venv/bin/tensorboard --logdir outputs/tracking                                   # live curves at http://localhost:6006
+.venv/bin/python   scripts/plot_training.py outputs/tracking/05_02_poses_0-4         # static curves.png from progress.csv
+.venv/bin/python   scripts/metrics.py outputs/retarget/*.npz                       # Tab. 3 metrics for IK results
+.venv/bin/python   scripts/eval_policy.py outputs/tracking/07_01_poses_0-2.6_q              # policy: falls, error, IK vs RL metrics
 ```
 
 ## Progress

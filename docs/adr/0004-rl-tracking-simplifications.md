@@ -13,7 +13,8 @@ Keep the paper's action and observation structure, reward terms and weights, ter
 | Absolute PD setpoints | Residual around reference joint angles (±0.5 rad) | Zero action = follow reference → much faster learning |
 | Learned init phase ψ from randomized pose | Reference state initialization (RSI) | We have a robot reference pose from IK |
 | Bilevel retargeting-parameter optimization | Fixed IK reference | Build the tracker first; bilevel is the next step |
-| Adaptive LR, 4096×24 rollouts | Fixed LR + KL early stop, 8×256 rollouts | Few envs need longer rollouts |
+| Adaptive LR, 4096×24 rollouts | ~~Fixed LR, 8×256~~ → adaptive LR (same rule), 8×1024 rollouts ([ADR 0005](0005-stabilize-rl-training.md)) | Few envs need longer rollouts |
+| Tab. 1 squared-error rewards | exp-kernel tracking rewards, penalty sum clipped at −10, action-range penalty ([ADR 0005](0005-stabilize-rl-training.md)) | Squared losses collapsed small-batch PPO |
 | Default exploration | `log_std_init = −1` | Otherwise early episodes are net negative and the policy learns to fall |
 
 ## Consequences

@@ -8,6 +8,8 @@ Deviations (to keep CPU training feasible), all marked `ponytail:` below:
   - reference state initialization (RSI) instead of the learned init phase psi (we have a robot
     reference pose from IK, which the paper did not)
   - no bilevel retargeting-parameter optimization yet (fixed reference)
+  - bounded exp-kernel tracking rewards + action-range penalty instead of Tab. 1's squared losses
+    (ADR 0005: squared losses made small-batch PPO collapse)
 """
 from pathlib import Path
 
@@ -23,7 +25,13 @@ KP_PER_GEAR, KD_RATIO = 4.0, 0.1  # PD gains: kp = 4 * motor gear -> saturates a
 TERM_POS, TERM_ORI = 0.5, 1.0  # early termination: torso position (m) / orientation (rad) error
 
 W = dict(root_xy=2.0, root_z=10.0, root_ori=2.0, root_v=0.5, root_w=0.5, body_x=2.0, body_R=2.0,
-         alive=20.0, torque=1e-4, qacc=1e-6, act_rate=1e-2, act_acc=1e-2, wrench=1e-2)  # Tab. 1
+         alive=20.0, torque=1e-4, qacc=1e-6, act_rate=1e-2, act_acc=1e-2, wrench=1e-2,  # Tab. 1
+         act_range=0.5)  # ADR 0005
+# ponytail: exp kernels w*exp(-err^2/sigma^2) keep each tracking term in [0, w] (ADR 0005); sigma = error
+# at which the term drops to 37 %. Tab. 1's -w*err^2 is unbounded and blew up small-batch PPO.
+SIGMA = dict(root_xy=0.3, root_z=0.1, root_ori=0.5, root_v=1.0, root_w=2.0, body_x=0.15, body_R=0.5)
+PENALTY_CLIP = 10.0  # sum of regularization penalties per step is clipped at -10 (< survival 20)
+ACT_BOUND = 3.0  # policy may output up to +-3 so leaving +-1 is penalized (not silently clipped)
 
 
 def quat_angle(q1, q2):
@@ -55,7 +63,7 @@ class TrackingEnv(gym.Env):
         self._load_reference(ref_path, t0, t1)
         nj = m.nu
         self.na = nj + (6 if residual_force else 0)
-        self.action_space = gym.spaces.Box(-1, 1, (self.na,), np.float32)
+        self.action_space = gym.spaces.Box(-ACT_BOUND, ACT_BOUND, (self.na,), np.float32)
         self.reset(seed=seed)
         self.observation_space = gym.spaces.Box(-np.inf, np.inf, self._obs().shape, np.float32)
 
@@ -97,7 +105,8 @@ class TrackingEnv(gym.Env):
 
     def step(self, action):
         m, d = self.model, self.data
-        a = np.clip(action, -1, 1)
+        raw = np.clip(action, -ACT_BOUND, ACT_BOUND)
+        a = np.clip(raw, -1, 1)  # what the robot gets; raw beyond +-1 is penalized in the reward
         nj = m.nu
         f_next = min(self.f + 1, self.T - 1)
         # ponytail: residual setpoints around the reference; absolute setpoints (paper) learn slower
@@ -114,14 +123,14 @@ class TrackingEnv(gym.Env):
         torque = d.qfrc_actuator[self.dadr].copy()  # applied (saturated) joint torque, for the penalty
         self.f = f_next
 
-        r, info = self._reward(a, torque)
+        r, info = self._reward(a, torque, raw)
         term = info["torso_pos_err"] > TERM_POS or info["torso_ori_err"] > TERM_ORI
         trunc = self.f >= self.T - 1
         self.a2, self.a1 = self.a1, a
         return self._obs(), (0.0 if term else r), term, trunc, info
 
     # ------------------------------------------------------------- internals
-    def _reward(self, a, torque):
+    def _reward(self, a, torque, raw):
         m, d, f = self.model, self.data, self.f
         x, R = d.xpos[1:], d.xquat[1:]
         rx, rR = self.ref_x[f], self.ref_R[f]
@@ -129,23 +138,29 @@ class TrackingEnv(gym.Env):
         nj = m.nu
         da = (a[:nj] - self.a1[:nj]) * ACT_SCALE
         dda = (a[:nj] - 2 * self.a1[:nj] + self.a2[:nj]) * ACT_SCALE
-        terms = dict(
-            root_xy=-np.sum((d.qpos[:2] - self.ref_q[f, :2]) ** 2),
-            root_z=-(d.qpos[2] - self.ref_q[f, 2]) ** 2,
-            root_ori=-root_ori ** 2,
-            root_v=-np.sum((d.qvel[:3] - self.ref_v[f, :3]) ** 2),
-            root_w=-np.sum((d.qvel[3:6] - self.ref_v[f, 3:6]) ** 2),
-            body_x=-np.sum((x - rx) ** 2),
-            body_R=-np.sum(quat_angle(R, rR) ** 2),
-            alive=1.0,
+        sq_err = dict(  # squared tracking errors
+            root_xy=np.sum((d.qpos[:2] - self.ref_q[f, :2]) ** 2),
+            root_z=(d.qpos[2] - self.ref_q[f, 2]) ** 2,
+            root_ori=root_ori ** 2,
+            root_v=np.sum((d.qvel[:3] - self.ref_v[f, :3]) ** 2),
+            root_w=np.sum((d.qvel[3:6] - self.ref_v[f, 3:6]) ** 2),
+            body_x=np.mean(np.sum((x - rx) ** 2, axis=1)),
+            body_R=np.mean(quat_angle(R, rR) ** 2),
+        )
+        penalties = dict(
             torque=-np.sum(torque ** 2),
             qacc=-np.sum(((d.qvel[6:] - self.qvel_prev) / DT) ** 2),  # over the control step
             act_rate=-np.sum(da ** 2),
             act_acc=-np.sum(dda ** 2),
             wrench=-np.sum(np.abs(d.xfrc_applied[self.torso])) if self.residual_force else 0.0,
+            act_range=-np.sum(np.maximum(0, np.abs(raw) - 1) ** 2),
         )
-        r = sum(W[k] * v for k, v in terms.items())
-        self.last_terms = {k: W[k] * v for k, v in terms.items()}
+        terms = {k: W[k] * np.exp(-e / SIGMA[k] ** 2) for k, e in sq_err.items()}
+        terms["alive"] = W["alive"]
+        terms |= {k: W[k] * v for k, v in penalties.items()}
+        pen = sum(W[k] * v for k, v in penalties.items())
+        r = sum(terms[k] for k in sq_err) + W["alive"] + max(pen, -PENALTY_CLIP)
+        self.last_terms = terms  # weighted, before the penalty clip
         info = dict(torso_pos_err=np.linalg.norm(d.qpos[:3] - self.ref_q[f, :3]), torso_ori_err=root_ori)
         return r, info
 
@@ -175,7 +190,12 @@ if __name__ == "__main__":  # self-check: zero action = pure PD on the reference
     for n in range(1, 500):
         obs, r, term, trunc, info = env.step(np.zeros(env.na))
         total += r
+        assert 20 - PENALTY_CLIP <= r <= sum(W[k] for k in SIGMA) + 20 or term, r
         if term or trunc:
             break
     print(f"obs {obs.shape}, act {env.na}, ref frames {env.T}; zero-action episode: {n} steps, return {total:.0f}, "
           f"{'terminated' if term else 'truncated'} (pos err {info['torso_pos_err']:.2f} m)")
+    env.reset(seed=0)
+    env.step(np.full(env.na, 2.0))
+    assert env.last_terms["act_range"] < 0, "out-of-range action must be penalized"
+    print("reward terms:", {k: round(float(v), 2) for k, v in env.last_terms.items()})

@@ -150,6 +150,20 @@ if __name__ == "__main__":
     Image.fromarray(np.concatenate(imgs, axis=1)).save(out.with_suffix(".png"))
     print("saved", out, "and", out.with_suffix(".png"))
 
+    if "--gif" in sys.argv:  # kinematic playback (no physics) next to the source skeleton, 25 fps
+        frames = []
+        with mujoco.Renderer(model, 300, 400) as r:
+            for f in np.arange(0, len(Q), fps / 25).astype(int):
+                data.qpos[:] = Q[f]
+                mujoco.mj_forward(model, data)
+                cam.lookat[:] = Q[f, :3] + side / 2
+                r.update_scene(data, cam)
+                draw_skeleton(r.scene, src[f])
+                frames.append(Image.fromarray(r.render()))
+        gif = out.with_name(out.stem + "_ik.gif")
+        frames[0].save(gif, save_all=True, append_images=frames[1:], duration=40, loop=0)
+        print("saved", gif)
+
     if "--view" in sys.argv:
         import mujoco.viewer
 

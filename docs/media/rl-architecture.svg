@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2e7d32"/>
+    </marker>
+    <style>
+      .t{font-size:20px;fill:#222}
+      .h{font-size:23px;font-weight:bold;fill:#111}
+      .s{font-size:17px;fill:#555}
+      .l{font-size:17px;fill:#333}
+      .lg{font-size:17px;fill:#2e7d32}
+      .e{stroke:#333;stroke-width:2.2;fill:none;marker-end:url(#a)}
+      .eg{stroke:#2e7d32;stroke-width:2.2;fill:none;stroke-dasharray:8 6;marker-end:url(#ag)}
+    </style>
+  </defs>
+  <rect width="1600" height="900" fill="#fff"/>
+  <text x="800" y="44" text-anchor="middle" font-size="32" font-weight="bold" fill="#111">RL motion tracking: control architecture</text>
+  <text x="800" y="72" text-anchor="middle" class="s">solid = runs every control step · dashed green = training only (PPO)</text>
+
+  <!-- reference -->
+  <rect x="40" y="150" width="270" height="170" rx="14" fill="#e3f2fd" stroke="#1565c0" stroke-width="2"/>
+  <text x="175" y="188" text-anchor="middle" class="h">Kinematic retargeting</text>
+  <text x="175" y="218" text-anchor="middle" class="t">AMASS clip → IK</text>
+  <text x="175" y="248" text-anchor="middle" class="t">reference q̂, x̂, R̂</text>
+  <text x="175" y="278" text-anchor="middle" class="s">offline, resampled to 50 Hz</text>
+  <text x="175" y="302" text-anchor="middle" class="s">start frame random (RSI)</text>
+
+  <!-- policy -->
+  <rect x="420" y="120" width="420" height="250" rx="14" fill="#fff3e0" stroke="#e65100" stroke-width="2"/>
+  <text x="630" y="155" text-anchor="middle" class="h">Policy π_θ (actor) · 50 Hz</text>
+  <rect x="445" y="175" width="370" height="70" rx="10" fill="#fff" stroke="#e65100"/>
+  <text x="630" y="205" text-anchor="middle" class="t">Observation 228-D (heading frame)</text>
+  <text x="630" y="232" text-anchor="middle" class="s">robot state + next reference frame + phase</text>
+  <rect x="445" y="270" width="370" height="80" rx="10" fill="#fff" stroke="#e65100"/>
+  <text x="630" y="302" text-anchor="middle" class="t">MLP 3 × 512, ELU</text>
+  <text x="630" y="330" text-anchor="middle" class="s">action a: 21 joint residuals + 6 root wrench</text>
+  <path class="e" d="M630,245 L630,268"/>
+
+  <!-- PD -->
+  <circle cx="985" cy="230" r="24" fill="#fff" stroke="#333" stroke-width="2"/>
+  <text x="985" y="238" text-anchor="middle" font-size="26">+</text>
+  <rect x="1060" y="160" width="230" height="140" rx="14" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="2"/>
+  <text x="1175" y="196" text-anchor="middle" class="h">PD servo · 200 Hz</text>
+  <text x="1175" y="230" text-anchor="middle" class="t">τ = k_p(q* − q) − k_d q̇</text>
+  <text x="1175" y="262" text-anchor="middle" class="s">clipped to motor limits</text>
+  <text x="1175" y="286" text-anchor="middle" class="s">4 substeps per action</text>
+
+  <!-- plant -->
+  <rect x="1360" y="150" width="210" height="300" rx="14" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2"/>
+  <text x="1465" y="190" text-anchor="middle" class="h">MuJoCo</text>
+  <text x="1465" y="218" text-anchor="middle" class="h">humanoid</text>
+  <text x="1465" y="258" text-anchor="middle" class="t">21 motors</text>
+  <text x="1465" y="286" text-anchor="middle" class="t">free root</text>
+  <text x="1465" y="314" text-anchor="middle" class="t">40.8 kg</text>
+  <text x="1465" y="352" text-anchor="middle" class="s">rigid bodies,</text>
+  <text x="1465" y="374" text-anchor="middle" class="s">ground + self</text>
+  <text x="1465" y="396" text-anchor="middle" class="s">contacts</text>
+
+  <!-- helper wrench -->
+  <rect x="1060" y="350" width="230" height="100" rx="14" fill="#ffebee" stroke="#c62828" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="1175" y="384" text-anchor="middle" class="h" fill="#c62828">Helper wrench</text>
+  <text x="1175" y="412" text-anchor="middle" class="s">torso ≤ 400 N / 100 Nm</text>
+  <text x="1175" y="434" text-anchor="middle" class="s">non-physical, penalized</text>
+
+  <!-- main edges -->
+  <path class="e" d="M310,235 L443,210"/>
+  <text x="330" y="200" class="l">preview</text>
+  <path class="e" d="M175,320 L175,420 L985,420 L985,256"/>
+  <text x="480" y="412" class="l">feedforward q̂(t+1)</text>
+  <path class="e" d="M815,300 L900,300 L900,230 L959,230"/>
+  <text x="850" y="290" class="l">+0.5·a_joint</text>
+  <path class="e" d="M1009,230 L1058,230"/>
+  <text x="1010" y="215" class="l">q*</text>
+  <path class="e" d="M1290,230 L1358,230"/>
+  <text x="1300" y="218" class="l">τ</text>
+  <path class="e" d="M815,335 L860,335 L860,400 L1058,400"/>
+  <text x="868" y="392" class="l">a_wrench</text>
+  <path class="e" d="M1290,400 L1358,400"/>
+  <path class="e" d="M1465,150 L1465,108 L630,108 L630,118"/>
+  <text x="1050" y="128" class="l">state s_t: q, q̇, root pose / velocity, body poses</text>
+  <path class="e" d="M1360,280 L1320,280 L1320,315 L1250,315 L1250,302"/>
+  <text x="1300" y="335" class="s">q, q̇</text>
+
+  <!-- training loop -->
+  <rect x="980" y="560" width="590" height="140" rx="14" fill="#f1f8e9" stroke="#2e7d32" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="1275" y="596" text-anchor="middle" class="h">Reward r_t (max 19 + 20 alive)</text>
+  <text x="1275" y="628" text-anchor="middle" class="t">Σ w·exp(−err²/σ²): root pos / ori / vel, body pos / ori</text>
+  <text x="1275" y="658" text-anchor="middle" class="t">− torque, joint-acc, action-rate, wrench penalties (≥ −10)</text>
+  <text x="1275" y="686" text-anchor="middle" class="s">episode ends if torso error &gt; 0.5 m or 1 rad</text>
+
+  <rect x="420" y="560" width="420" height="140" rx="14" fill="#f1f8e9" stroke="#2e7d32" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="630" y="596" text-anchor="middle" class="h">Critic V_φ(s) + PPO update</text>
+  <text x="630" y="628" text-anchor="middle" class="t">8 envs × 1024 steps, GAE (γ 0.97, λ 0.95)</text>
+  <text x="630" y="658" text-anchor="middle" class="t">clip 0.2, 5 epochs × 4 mini-batches</text>
+  <text x="630" y="686" text-anchor="middle" class="s">learning rate adapted to KL ≈ 0.01</text>
+
+  <path class="eg" d="M1465,450 L1465,558"/>
+  <text x="1475" y="510" class="lg">s_t</text>
+  <path class="eg" d="M310,300 L360,300 L360,780 L1275,780 L1275,702"/>
+  <text x="560" y="772" class="lg">reference for tracking errors</text>
+  <path class="eg" d="M978,630 L842,630"/>
+  <text x="870" y="620" class="lg">r_t</text>
+  <path class="eg" d="M630,558 L630,372"/>
+  <text x="640" y="470" class="lg">∇θ (policy update)</text>
+
+  <text x="800" y="860" text-anchor="middle" class="s">After training only the actor + PD run; the critic and reward are discarded. The helper wrench is what the next step anneals to 0.</text>
+</svg>

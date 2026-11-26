@@ -23,7 +23,7 @@
 | 02_01, 07_01 | walk | ~2.7 s each |
 | 05_02 | modern dance, pirouette | 9.4 s |
 | 05_06 | modern dance, cartwheel-like start, jeté | 7.4 s |
-| 60_01 | salsa | 18.7 s |
+| 60_01 | salsa | 37.4 s (60 fps source; corrected 2026-11-25, was listed as 18.7 s) |
 
 - Each clip `.npz` holds `poses` (T×156 axis-angles, 52 joints; the first 22 are the body), `trans` (root position), `betas` (body shape), `gender`, `mocap_framerate` (120).
 

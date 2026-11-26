@@ -3,3 +3,5 @@ pillow
 stable-baselines3==2.9.2
 gymnasium==1.4.0
 torch==2.15.0
+matplotlib==3.11.2
+tensorboard==2.21.0

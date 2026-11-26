@@ -1,5 +1,7 @@
 # Architecture
 
+> Software view (scripts, data flow). For the **control / RL view** (loops, signals, rates, equations) see [control-architecture.md](control-architecture.md).
+
 System model of the ReActor reimplementation. Diagrams are Mermaid (they render on GitHub). **Update this file whenever a block, interface or flow changes**; devlogs name the blocks they touch by ID (B1…B8).
 
 ## 1. Block diagram
@@ -19,7 +21,7 @@ flowchart LR
     end
     B6["B6 Robot model<br/>assets/humanoid.xml"]
     B7["B7 Visualization<br/>spawn_humanoid / play_amass / --view / --play"]
-    B8["B8 Evaluation (planned)<br/>Tab. 3 metrics"]
+    B8["B8 Evaluation<br/>metrics.py, eval_policy.py"]
 
     AR[("AMASS CMU archive")] --> B1 -->|clip .npz| B2
     B2 -->|joints T×22×3| B3
@@ -30,8 +32,8 @@ flowchart LR
     B5 -->|checkpoints| B7
     B3 -->|reference qpos| B7
     B2 -->|joints| B7
-    B3 -.->|baseline| B8
-    B5 -.->|policy rollouts| B8
+    B3 -->|IK qpos| B8
+    B5 -->|policy rollouts| B8
     B8 -.->|"bilevel update of p (planned)"| B3
 ```
 
@@ -44,7 +46,7 @@ flowchart LR
 | B5 PPO trainer | `scripts/train_tracking.py` | B4 (8 parallel envs) | `outputs/tracking/<run>/model_*.zip`, `progress.csv` | done |
 | B6 Robot model | `assets/humanoid.xml` | — | MJCF, 21 actuated hinges + free root | done |
 | B7 Visualization | `spawn_humanoid.py`, `play_amass.py`, `retarget.py --view`, `train_tracking.py --play` | any of the above | viewer / PNG | done |
-| B8 Evaluation | — | B3 / B5 trajectories | penetration, sliding, floating, self-collision | planned |
+| B8 Evaluation | `metrics.py`, `eval_policy.py` | B3 qpos (+ source clip for contacts), B5 best policy | falls, body error, helper force; ground/self penetration, foot sliding, foot floating (IK vs RL) | done |
 
 ## 2. Interfaces (data contracts)
 

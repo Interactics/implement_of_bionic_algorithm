@@ -14,3 +14,22 @@ logs/
 *.zip
 *.npz
 *.pkl
+# rendered animations are large; regenerate with retarget.py --gif / render scripts
+*.gif
+*.png
+*.mp4
+*.mov
+# logs, TensorBoard events, crash logs
+*.log
+events.out.tfevents.*
+MUJOCO_LOG.TXT
+nohup.out
+# editors / OS / tooling
+.vscode/
+.idea/
+*.swp
+*~
+.ipynb_checkpoints/
+.obsidian/
+.claude/settings.local.json
+.env
